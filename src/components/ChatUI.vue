@@ -21,12 +21,13 @@
         <div class="input">
           <input v-model="currentMessage" @keyup.enter="sendMessage" placeholder="Type a message...">
           <button @click="sendMessage">Send Message</button>
-          <button class="file-btn" @click="onPickFile">Upload File</button>
+          <button class="file-btn" @click="onPickFile">Select File</button>
+      <button class="upload-btn" @click="uploadFile" :disabled="!selectedFile">Upload File</button>
 <input
   type="file"
   style="display: none"
   ref="fileInput"
-  accept="image/pdf/txt/csv*"
+  accept=".pdf, .txt, .csv, .docx"
   @change="onFilePicked"/>
 
           </div>
@@ -45,7 +46,7 @@ export default {
     return {
       messages: [],
       currentMessage: '',
-      file :null
+      selectedFile : null
     }
   },
   methods: {
@@ -53,17 +54,53 @@ export default {
   this.$refs.fileInput.click()
 },
 onFilePicked (event) {
-  const files = event.target.files
+  this.selectedFile = event.target.files[0];
   
-  let filename = files[0].name
   const fileReader = new FileReader()
   fileReader.addEventListener('load', () => {
     this.imageUrl = fileReader.result
   })
-  fileReader.readAsDataURL(files[0])
-  this.file = files[0]
-  console.log(this.file)
+  
+  fileReader.readAsDataURL(this.selectedFile)
 },
+uploadFile() {
+  if (this.selectedFile) {
+    const formData = new FormData();
+   
+    formData.append('pdf_files', this.selectedFile);
+  const config = {
+          method: 'post',
+          maxBodyLength: Infinity,
+          url: 'http://127.0.0.1:8000/upload_pdf',
+          crossDomain : true,
+          headers: {
+            accept: 'multipart/form-data',
+            'Content-Type': 'multipart/form-data'
+          },
+          data:formData
+        };
+        axios
+          .request(config)
+          .then((response) => {
+            console.log(JSON.stringify(response.data.text));
+            
+            this.messages.push({
+            text: response.data.text.trim(),
+            isBot: true
+            });
+            this.currentMessage = '';
+            this.$nextTick(() => {
+              this.scrollBottom();
+            });
+          })
+          .catch((error) => {
+            console.log('errorType', typeof error);
+            console.log(error);
+            console.log(this.selectedFile)
+          });
+  this.file = this.selectedFile
+  console.log(this.file)
+}},
     sendMessage() {
       if (this.currentMessage) {
         this.messages.push({
@@ -310,7 +347,9 @@ img {
   font-size: 20px;
   transition: background-color 0.3s ease;
 }
-
+.upload-btn {
+  margin-left : 17px;
+}
 .scroll-bottom-button:before {
   content: '\2193';
   display: block;
